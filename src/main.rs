@@ -1,5 +1,5 @@
 use calamine::{DataType, HeaderRow, Reader, Xlsx, open_workbook};
-use charts_rs::{BarChart, Box, ChildChart, MultiChart, svg_to_png};
+use charts_rs::{BarChart, Box, ChildChart, MultiChart, PieChart, Series, svg_to_png};
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -129,26 +129,19 @@ fn main() -> std::io::Result<()> {
     }
     nodes.set_unit_cost(1);
 
-    // println!(
-    //     "Total cost = {} MSEK",
-    //     nodes.get_unit_cost(1).unwrap() / 1e3
-    // );
-
     let total_cost: f32 = nodes.get_unit_cost(1).unwrap() / 1e3;
     let level2_nodes = nodes.get_nodes_with_parent(1);
-    // for node in level2_nodes {
-    //     println!("{:?}", node);
-    // }
 
     let level2_names: Vec<String> = level2_nodes.iter().map(|n| n.name.clone()).collect();
-    // println!("{:?}", level2_names);
     let level2_costs: Vec<f32> = level2_nodes
         .iter()
         .map(|n| n.total_cost.unwrap() / 1e3)
         .collect();
-    // println!("{:?}", level2_costs);
 
-    let mut barchart = BarChart::new(vec![("Level2", level2_costs).into()], level2_names);
+    let mut barchart = BarChart::new(
+        vec![("Level2", level2_costs.clone()).into()],
+        level2_names.clone(),
+    );
     barchart.width = 800.0;
     barchart.title_text = format!("Total cost: {:0.1} M.SEK", total_cost);
     barchart.title_margin = Some(Box {
@@ -158,8 +151,21 @@ fn main() -> std::io::Result<()> {
     });
     barchart.legend_show = Some(false);
 
+    let pie_series = level2_names
+        .iter()
+        .zip(level2_costs)
+        .map(|(name, cost)| Series::new(name.clone(), vec![cost]))
+        .collect();
+
+    let mut piechart = PieChart::new(pie_series);
+    piechart.rose_type = Some(false);
+
     let mut container = MultiChart::new();
-    container.add(ChildChart::Bar(barchart, None));
+    container.add(ChildChart::Bar(barchart.clone(), Some((0f32, 0f32))));
+    container.add(ChildChart::Pie(
+        piechart,
+        Some((barchart.x + barchart.width, barchart.y)),
+    ));
 
     let mut output_file = match File::create("plot.png") {
         Ok(f) => f,
