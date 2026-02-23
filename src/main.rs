@@ -1,5 +1,5 @@
 use calamine::{DataType, HeaderRow, Reader, Xlsx, open_workbook};
-use charts_rs::{BarChart, Box};
+use charts_rs::{BarChart, Box, ChildChart, MultiChart, svg_to_png};
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -157,14 +157,20 @@ fn main() -> std::io::Result<()> {
         ..Default::default()
     });
     barchart.legend_show = Some(false);
-    let mut output_file = match File::create("plot.svg") {
+
+    let mut container = MultiChart::new();
+    container.add(ChildChart::Bar(barchart, None));
+
+    let mut output_file = match File::create("plot.png") {
         Ok(f) => f,
         Err(e) => {
             eprintln!("ERROR: Could not open output file");
             return Err(e);
         }
     };
-    let res = output_file.write_all(barchart.svg().unwrap().as_bytes());
+    let svg_contents = container.svg().unwrap();
+    let png_contents = svg_to_png(&svg_contents).unwrap();
+    let res = output_file.write_all(&png_contents);
     if res.is_err() {
         eprintln!("ERROR: Could not write output file");
         return res;
