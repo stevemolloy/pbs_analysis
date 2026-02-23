@@ -1,0 +1,8 @@
+[package]
+name = "rust_pbs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+calamine = "0.33.0"
+charts-rs = "0.3.27"
