@@ -5,6 +5,7 @@ use std::io::prelude::*;
 
 const FILEPATH: &str = "ProductBreakdownStructure.xlsx";
 const SHEETNAME: &str = "Full Data";
+const OUTPUTFILE: &str = "plot.png";
 
 #[derive(Debug)]
 struct Node {
@@ -39,7 +40,7 @@ impl Nodes {
         retval
     }
 
-    fn set_unit_cost(&mut self, id: u32) -> () {
+    fn set_unit_cost(&mut self, id: u32) {
         if self
             .get_node_with_id(id)
             .and_then(|n| n.unit_cost)
@@ -59,21 +60,17 @@ impl Nodes {
         for (child_id, child_count) in child_ids {
             self.set_unit_cost(child_id);
             cost +=
-                self.get_node_with_id(child_id).unwrap().unit_cost.unwrap() * child_count as f32;
+                self.get_node_with_id(child_id).unwrap().unit_cost.unwrap() * child_count;
         }
 
         let node = self.get_mut_node_with_id(id).unwrap();
         node.unit_cost = Some(cost);
-        node.total_cost = Some(cost * node.count as f32);
+        node.total_cost = Some(cost * node.count);
     }
 
     fn get_unit_cost(&self, id: u32) -> Option<f32> {
         if let Some(node) = self.get_node_with_id(id) {
-            if let Some(cost) = node.unit_cost {
-                Some(cost)
-            } else {
-                None
-            }
+            node.unit_cost
         } else {
             None
         }
@@ -103,19 +100,15 @@ fn main() -> std::io::Result<()> {
                 Some(row[3].get_float().unwrap() as f32)
             };
             let count: f32 = row[4].get_float().unwrap() as f32;
-            let total_cost: Option<f32> = if unit_cost.is_some() {
-                Some(unit_cost.unwrap() * count as f32)
-            } else {
-                None
-            };
+            let total_cost: Option<f32> = unit_cost.map(|ucost| ucost * count);
 
             let node = Node {
-                id: id,
-                parent: parent,
-                name: name,
-                unit_cost: unit_cost,
-                count: count,
-                total_cost: total_cost,
+                id,
+                parent,
+                name,
+                unit_cost,
+                count,
+                total_cost,
             };
 
             nodes.data.push(node);
@@ -167,7 +160,7 @@ fn main() -> std::io::Result<()> {
         Some((barchart.x + barchart.width, barchart.y)),
     ));
 
-    let mut output_file = match File::create("plot.png") {
+    let mut output_file = match File::create(OUTPUTFILE) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("ERROR: Could not open output file");
@@ -177,6 +170,7 @@ fn main() -> std::io::Result<()> {
     let svg_contents = container.svg().unwrap();
     let png_contents = svg_to_png(&svg_contents).unwrap();
     let res = output_file.write_all(&png_contents);
+    // let res = output_file.write_all(&svg_contents.as_bytes());
     if res.is_err() {
         eprintln!("ERROR: Could not write output file");
         return res;
