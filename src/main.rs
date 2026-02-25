@@ -22,6 +22,53 @@ struct Nodes {
 }
 
 impl Nodes {
+    fn from_file(filename: &str) -> Result<Nodes, ()> {
+        let mut excel: Xlsx<_> = open_workbook(filename).unwrap();
+
+        let mut nodes = Nodes { data: Vec::new() };
+
+        if let Ok(datasheet) = excel
+            .with_header_row(HeaderRow::Row(1))
+            .worksheet_range(SHEETNAME)
+        {
+            for row in datasheet.rows() {
+                let id: u32 = row[0].get_float().unwrap().round() as u32;
+                let parent: Option<u32> = if row[1].is_empty() {
+                    None
+                } else {
+                    Some(row[1].get_float().unwrap().round() as u32)
+                };
+                let name: String = row[2].to_string();
+                let unit_cost: Option<f32> = if row[3].is_empty() {
+                    None
+                } else {
+                    Some(row[3].get_float().unwrap() as f32)
+                };
+                let count: f32 = row[4].get_float().unwrap() as f32;
+                let total_cost: Option<f32> = unit_cost.map(|ucost| ucost * count);
+
+                let node = Node {
+                    id,
+                    parent,
+                    name,
+                    unit_cost,
+                    count,
+                    total_cost,
+                };
+
+                nodes.data.push(node);
+            }
+        } else {
+            println!(
+                "Couldn't open the sheet '{}' in file '{}'",
+                SHEETNAME, FILEPATH
+            );
+            return Err(());
+        }
+        nodes.set_unit_cost(1);
+        return Ok(nodes);
+    }
+
     fn get_node_with_id(&self, id: u32) -> Option<&Node> {
         self.data.iter().find(|node| node.id == id)
     }
@@ -59,8 +106,7 @@ impl Nodes {
         let mut cost: f32 = 0.0;
         for (child_id, child_count) in child_ids {
             self.set_unit_cost(child_id);
-            cost +=
-                self.get_node_with_id(child_id).unwrap().unit_cost.unwrap() * child_count;
+            cost += self.get_node_with_id(child_id).unwrap().unit_cost.unwrap() * child_count;
         }
 
         let node = self.get_mut_node_with_id(id).unwrap();
@@ -78,49 +124,7 @@ impl Nodes {
 }
 
 fn main() -> std::io::Result<()> {
-    let mut excel: Xlsx<_> = open_workbook(FILEPATH).unwrap();
-
-    let mut nodes = Nodes { data: Vec::new() };
-
-    if let Ok(datasheet) = excel
-        .with_header_row(HeaderRow::Row(1))
-        .worksheet_range(SHEETNAME)
-    {
-        for row in datasheet.rows() {
-            let id: u32 = row[0].get_float().unwrap().round() as u32;
-            let parent: Option<u32> = if row[1].is_empty() {
-                None
-            } else {
-                Some(row[1].get_float().unwrap().round() as u32)
-            };
-            let name: String = row[2].to_string();
-            let unit_cost: Option<f32> = if row[3].is_empty() {
-                None
-            } else {
-                Some(row[3].get_float().unwrap() as f32)
-            };
-            let count: f32 = row[4].get_float().unwrap() as f32;
-            let total_cost: Option<f32> = unit_cost.map(|ucost| ucost * count);
-
-            let node = Node {
-                id,
-                parent,
-                name,
-                unit_cost,
-                count,
-                total_cost,
-            };
-
-            nodes.data.push(node);
-        }
-    } else {
-        println!(
-            "Couldn't open the sheet '{}' in file '{}'",
-            SHEETNAME, FILEPATH
-        );
-        return Ok(());
-    }
-    nodes.set_unit_cost(1);
+    let nodes = Nodes::from_file(FILEPATH).unwrap();
 
     let total_cost: f32 = nodes.get_unit_cost(1).unwrap() / 1e3;
     let level2_nodes = nodes.get_nodes_with_parent(1);
