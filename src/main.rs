@@ -66,7 +66,7 @@ impl Nodes {
             return Err(());
         }
         nodes.set_unit_cost(1);
-        return Ok(nodes);
+        Ok(nodes)
     }
 
     fn get_node_with_id(&self, id: u32) -> Option<&Node> {
@@ -123,30 +123,27 @@ impl Nodes {
     }
 }
 
-fn main() -> std::io::Result<()> {
-    let nodes = Nodes::from_file(FILEPATH).unwrap();
+fn barchart_from_nodes(nodes: &Vec<&Node>) -> BarChart {
+    let level2_names: Vec<String> = nodes.iter().map(|n| n.name.clone()).collect();
+    let level2_costs: Vec<f32> = nodes.iter().map(|n| n.total_cost.unwrap() / 1e3).collect();
 
-    let total_cost: f32 = nodes.get_unit_cost(1).unwrap() / 1e3;
-    let level2_nodes = nodes.get_nodes_with_parent(1);
-
-    let level2_names: Vec<String> = level2_nodes.iter().map(|n| n.name.clone()).collect();
-    let level2_costs: Vec<f32> = level2_nodes
-        .iter()
-        .map(|n| n.total_cost.unwrap() / 1e3)
-        .collect();
-
-    let mut barchart = BarChart::new(
+    let mut barchart: BarChart = BarChart::new(
         vec![("Level2", level2_costs.clone()).into()],
         level2_names.clone(),
     );
     barchart.width = 800.0;
-    barchart.title_text = format!("Total cost: {:0.1} M.SEK", total_cost);
     barchart.title_margin = Some(Box {
         top: 15.0,
         bottom: 5.0,
         ..Default::default()
     });
     barchart.legend_show = Some(false);
+    barchart
+}
+
+fn piechart_from_nodes(nodes: &Vec<&Node>) -> PieChart {
+    let level2_names: Vec<String> = nodes.iter().map(|n| n.name.clone()).collect();
+    let level2_costs: Vec<f32> = nodes.iter().map(|n| n.total_cost.unwrap() / 1e3).collect();
 
     let pie_series = level2_names
         .iter()
@@ -154,8 +151,16 @@ fn main() -> std::io::Result<()> {
         .map(|(name, cost)| Series::new(name.clone(), vec![cost]))
         .collect();
 
-    let mut piechart = PieChart::new(pie_series);
+    let mut piechart: PieChart = PieChart::new(pie_series);
     piechart.rose_type = Some(false);
+    piechart
+}
+
+fn cost_plots_from_nodes(nodes: &Vec<&Node>, title: &str) -> MultiChart {
+    let mut barchart: BarChart = barchart_from_nodes(nodes);
+    barchart.title_text = title.to_string();
+
+    let piechart: PieChart = piechart_from_nodes(nodes);
 
     let mut container = MultiChart::new();
     container.add(ChildChart::Bar(barchart.clone(), Some((0f32, 0f32))));
@@ -163,6 +168,16 @@ fn main() -> std::io::Result<()> {
         piechart,
         Some((barchart.x + barchart.width, barchart.y)),
     ));
+    container
+}
+
+fn main() -> std::io::Result<()> {
+    let nodes = Nodes::from_file(FILEPATH).unwrap();
+
+    let level2_nodes: Vec<&Node> = nodes.get_nodes_with_parent(1);
+    let total_cost: f32 = nodes.get_unit_cost(1).unwrap() / 1e3;
+    let title_text = format!("Total cost: {:0.1} M.SEK", total_cost);
+    let mut container: MultiChart = cost_plots_from_nodes(&level2_nodes, &title_text);
 
     let mut output_file = match File::create(OUTPUTFILE) {
         Ok(f) => f,
