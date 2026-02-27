@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 calamine = "0.33.0"
 charts-rs = { version = "0.3.27", features = ["image-encoder"] }
+genpdf = { version = "0.2.0", features = ["image", "images"] }
