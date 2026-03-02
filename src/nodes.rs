@@ -6,9 +6,9 @@ pub const SHEETNAME: &str = "Full Data";
 
 #[derive(Debug)]
 pub struct Node {
-    id: u32,
+    pub id: u32,
     parent: Option<u32>,
-    name: String,
+    pub name: String,
     unit_cost: Option<f32>,
     count: f32,
     total_cost: Option<f32>,
@@ -74,7 +74,11 @@ impl Nodes {
         self.data.iter_mut().find(|node| node.id == id)
     }
 
-    pub fn get_nodes_with_parent(&self, parent: u32) -> Vec<&Node> {
+    pub fn get_nodes_with_name(&self, name: &str) -> Vec<&Node> {
+        self.data.iter().filter(|n| n.name == name).collect()
+    }
+
+    fn get_nodes_with_parent(&self, parent: u32) -> Vec<&Node> {
         let mut retval: Vec<&Node> = Vec::new();
         for node in self.data.iter() {
             if node.parent == Some(parent) {
@@ -82,6 +86,26 @@ impl Nodes {
             }
         }
         retval
+    }
+
+    pub fn get_children(&self, parent: u32) -> Vec<&Node> {
+        self.get_nodes_with_parent(parent)
+    }
+
+    pub fn count_all_children(&self, parent: u32) -> f32 {
+        let node: &Node = self
+            .get_node_with_id(parent)
+            .expect("No nodes with this ID");
+        let direct_children: Vec<&Node> = self.get_children(parent);
+        if direct_children.len() == 0 {
+            return node.count;
+        }
+
+        let mut count: f32 = 0.0;
+        for child in direct_children {
+            count += node.count * self.count_all_children(child.id);
+        }
+        return count;
     }
 
     pub fn set_unit_cost(&mut self, id: u32) {
