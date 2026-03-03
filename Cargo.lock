@@ -1529,6 +1529,7 @@ dependencies = [
  "calamine",
  "charts-rs",
  "genpdf",
+ "itertools",
 ]
 
 [[package]]
