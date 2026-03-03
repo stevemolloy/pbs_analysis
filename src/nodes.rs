@@ -11,7 +11,7 @@ pub struct Node {
     pub name: String,
     pub unit_cost: Option<f32>,
     count: f32,
-    total_cost: Option<f32>,
+    pub total_cost: Option<f32>,
 }
 
 pub struct Nodes {
