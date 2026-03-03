@@ -9,7 +9,7 @@ pub struct Node {
     pub id: u32,
     parent: Option<u32>,
     pub name: String,
-    unit_cost: Option<f32>,
+    pub unit_cost: Option<f32>,
     count: f32,
     total_cost: Option<f32>,
 }
@@ -74,8 +74,14 @@ impl Nodes {
         self.data.iter_mut().find(|node| node.id == id)
     }
 
-    pub fn get_nodes_with_name(&self, name: &str) -> Vec<&Node> {
-        self.data.iter().filter(|n| n.name == name).collect()
+    pub fn get_node_with_name(&self, name: &str) -> &Node {
+        let nodes_list: Vec<&Node> = self.data.iter().filter(|n| n.name == name).collect();
+        if nodes_list.len() > 1 {
+            panic!("Found more than one node with name \"{name}\"");
+        } else if nodes_list.is_empty() {
+            panic!("No nodes found with name \"{name}\"");
+        }
+        nodes_list[0]
     }
 
     fn get_nodes_with_parent(&self, parent: u32) -> Vec<&Node> {
@@ -97,7 +103,7 @@ impl Nodes {
             .get_node_with_id(parent)
             .expect("No nodes with this ID");
         let direct_children: Vec<&Node> = self.get_children(parent);
-        if direct_children.len() == 0 {
+        if direct_children.is_empty() {
             return node.count;
         }
 
@@ -105,7 +111,7 @@ impl Nodes {
         for child in direct_children {
             count += node.count * self.count_all_children(child.id);
         }
-        return count;
+        count
     }
 
     pub fn set_unit_cost(&mut self, id: u32) {
