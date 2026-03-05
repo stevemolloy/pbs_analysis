@@ -1,16 +1,17 @@
 use charts_rs::{CanvasResult, MultiChart, svg_to_jpeg};
-use genpdf::elements::{Break, FrameCellDecorator, Image, Paragraph, TableLayout};
+use genpdf::elements::{Break, FrameCellDecorator, Image, PageBreak, Paragraph, TableLayout};
 use genpdf::style::Style;
-use genpdf::{Alignment, Document, Element, Scale, style};
+use genpdf::{Alignment, Document, Element, Scale};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::io::Cursor;
 
 use crate::nodes::{Node, Nodes};
 
-const TITLE_FONTSIZE: u8 = 16;
-const HEADING_FONTSIZE: u8 = 12;
 const DEFAULT_FONTSIZE: u8 = 8;
+const HEADING_FONTSIZE: u8 = DEFAULT_FONTSIZE + 4;
+const TITLE_FONTSIZE: u8 = DEFAULT_FONTSIZE + 8;
+const TABLE_FONTSIZE: u8 = DEFAULT_FONTSIZE + 1;
 
 pub trait SvgRenderable {
     fn svg(&mut self) -> CanvasResult<String>;
@@ -22,26 +23,65 @@ impl SvgRenderable for MultiChart {
     }
 }
 
+pub trait SimpleDoc {
+    fn title(&mut self, text: &str) -> &mut Self;
+    fn heading(&mut self, text: &str) -> &mut Self;
+    fn paragraph(&mut self, text: &str) -> &mut Self;
+    fn chart<T: SvgRenderable>(&mut self, chart: &mut T) -> &mut Self;
+    fn magnet_block_cost_table(&mut self, block_costs: HashMap<String, f32>) -> &mut Self;
+    fn pagebreak(&mut self) -> &mut Self;
+}
+
+impl SimpleDoc for Document {
+    fn title(&mut self, text: &str) -> &mut Self {
+        set_title(self, text);
+        self
+    }
+
+    fn heading(&mut self, text: &str) -> &mut Self {
+        add_heading(self, text);
+        self
+    }
+
+    fn paragraph(&mut self, text: &str) -> &mut Self {
+        add_paragraph(self, text);
+        self
+    }
+
+    fn chart<T: SvgRenderable>(&mut self, chart: &mut T) -> &mut Self {
+        add_chart(self, chart);
+        self
+    }
+
+    fn magnet_block_cost_table(&mut self, block_costs: HashMap<String, f32>) -> &mut Self {
+        add_magnet_block_cost_table(self, block_costs);
+        self
+    }
+
+    fn pagebreak(&mut self) -> &mut Self {
+        self.push(PageBreak::new());
+        self
+    }
+}
+
 pub fn set_title(document: &mut Document, text: &str) {
     document.set_title(text);
     document.push(
         Paragraph::new(text)
             .aligned(Alignment::Center)
-            .styled(style::Style::new().bold().with_font_size(TITLE_FONTSIZE)),
+            .styled(Style::new().bold().with_font_size(TITLE_FONTSIZE)),
     );
     document.push(Break::new(1));
 }
 
 pub fn add_heading(document: &mut Document, text: &str) {
-    document.push(
-        Paragraph::new(text).styled(style::Style::new().bold().with_font_size(HEADING_FONTSIZE)),
-    );
+    document
+        .push(Paragraph::new(text).styled(Style::new().bold().with_font_size(HEADING_FONTSIZE)));
     document.push(Break::new(1));
 }
 
 pub fn add_paragraph(document: &mut Document, text: &str) {
-    document
-        .push(Paragraph::new(text).styled(style::Style::new().with_font_size(DEFAULT_FONTSIZE)));
+    document.push(Paragraph::new(text).styled(Style::new().with_font_size(DEFAULT_FONTSIZE)));
     document.push(Break::new(1));
 }
 
@@ -63,13 +103,13 @@ pub fn add_magnet_block_cost_table(document: &mut Document, block_costs: HashMap
     let mut row = block_cost_table.row();
     row.push_element(
         Paragraph::new("Block")
-            .styled(Style::new().bold().with_font_size(DEFAULT_FONTSIZE))
+            .styled(Style::new().bold().with_font_size(TABLE_FONTSIZE))
             .padded(1),
     );
     row.push_element(
         Paragraph::new("Cost (M.SEK)")
             .aligned(Alignment::Center)
-            .styled(Style::new().bold().with_font_size(DEFAULT_FONTSIZE))
+            .styled(Style::new().bold().with_font_size(TABLE_FONTSIZE))
             .padded(1),
     );
     row.push().expect("Table row is invalid");
@@ -84,13 +124,13 @@ pub fn add_magnet_block_cost_table(document: &mut Document, block_costs: HashMap
         let mut row = block_cost_table.row();
         row.push_element(
             Paragraph::new(name)
-                .styled(Style::new().with_font_size(DEFAULT_FONTSIZE))
+                .styled(Style::new().with_font_size(TABLE_FONTSIZE))
                 .padded(1),
         );
         row.push_element(
             Paragraph::new(format!("{:0.3}", cost / 1e3))
                 .aligned(Alignment::Center)
-                .styled(Style::new().with_font_size(DEFAULT_FONTSIZE))
+                .styled(Style::new().with_font_size(TABLE_FONTSIZE))
                 .padded(1),
         );
         row.push().expect("Table row is invalid");
@@ -98,13 +138,13 @@ pub fn add_magnet_block_cost_table(document: &mut Document, block_costs: HashMap
     let mut row = block_cost_table.row();
     row.push_element(
         Paragraph::new("TOTAL")
-            .styled(Style::new().bold().with_font_size(DEFAULT_FONTSIZE))
+            .styled(Style::new().bold().with_font_size(TABLE_FONTSIZE))
             .padded(1),
     );
     row.push_element(
         Paragraph::new(format!("{:0.3}", total_cost / 1e3))
             .aligned(Alignment::Center)
-            .styled(Style::new().bold().with_font_size(DEFAULT_FONTSIZE))
+            .styled(Style::new().bold().with_font_size(TABLE_FONTSIZE))
             .padded(1),
     );
     row.push().expect("Table row is invalid");

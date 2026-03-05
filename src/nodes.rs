@@ -10,7 +10,7 @@ pub struct Node {
     parent: Option<u32>,
     pub name: String,
     pub unit_cost: Option<f32>,
-    count: f32,
+    pub count: f32,
     pub total_cost: Option<f32>,
 }
 
@@ -84,6 +84,10 @@ impl Nodes {
         nodes_list[0]
     }
 
+    pub fn get_nodes_with_name(&self, name: &str) -> Vec<&Node> {
+        self.data.iter().filter(|n| n.name == name).collect()
+    }
+
     fn get_nodes_with_parent(&self, parent: u32) -> Vec<&Node> {
         let mut retval: Vec<&Node> = Vec::new();
         for node in self.data.iter() {
@@ -154,10 +158,12 @@ fn barchart_from_nodes(nodes: &Vec<&Node>) -> BarChart {
     let level2_names: Vec<String> = nodes.iter().map(|n| n.name.clone()).collect();
     let level2_costs: Vec<f32> = nodes.iter().map(|n| n.total_cost.unwrap() / 1e3).collect();
 
-    let mut barchart: BarChart = BarChart::new(
-        vec![("Level2", level2_costs.clone()).into()],
-        level2_names.clone(),
-    );
+    barchart_from_data(level2_names, level2_costs)
+}
+
+fn barchart_from_data(names: Vec<String>, data: Vec<f32>) -> BarChart {
+    let mut barchart: BarChart =
+        BarChart::new(vec![("Level2", data.clone()).into()], names.clone());
     barchart.width = 800.0;
     barchart.title_margin = Some(Box {
         top: 15.0,
@@ -172,9 +178,13 @@ fn piechart_from_nodes(nodes: &Vec<&Node>) -> PieChart {
     let level2_names: Vec<String> = nodes.iter().map(|n| n.name.clone()).collect();
     let level2_costs: Vec<f32> = nodes.iter().map(|n| n.total_cost.unwrap() / 1e3).collect();
 
-    let pie_series = level2_names
+    piechart_from_data(level2_names, level2_costs)
+}
+
+fn piechart_from_data(names: Vec<String>, data: Vec<f32>) -> PieChart {
+    let pie_series = names
         .iter()
-        .zip(level2_costs)
+        .zip(data)
         .map(|(name, cost)| Series::new(name.clone(), vec![cost]))
         .collect();
 
@@ -188,6 +198,23 @@ pub fn cost_plots_from_nodes(nodes: &Vec<&Node>, title: &str) -> MultiChart {
     barchart.title_text = title.to_string();
 
     let piechart: PieChart = piechart_from_nodes(nodes);
+
+    let mut container = MultiChart::new();
+    container.add(ChildChart::Bar(barchart.clone(), Some((0f32, 0f32))));
+    container.add(ChildChart::Pie(
+        piechart,
+        Some((barchart.x + barchart.width, barchart.y)),
+    ));
+    container.margin.bottom = 0.0;
+    container.margin.right = 0.0;
+    container
+}
+
+pub fn cost_plots_from_data(names: Vec<String>, data: Vec<f32>, title: &str) -> MultiChart {
+    let mut barchart: BarChart = barchart_from_data(names.clone(), data.clone());
+    barchart.title_text = title.to_string();
+
+    let piechart: PieChart = piechart_from_data(names, data);
 
     let mut container = MultiChart::new();
     container.add(ChildChart::Bar(barchart.clone(), Some((0f32, 0f32))));
