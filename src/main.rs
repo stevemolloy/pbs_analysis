@@ -11,12 +11,35 @@ use crate::pbs_lib::{SimpleDoc, get_magnet_block_costs};
 
 const DOC_TITLE: &str = "MAX4U PBS Cost Analysis";
 const OUTPUT_FILE: &str = "output.pdf";
-const FONT: &str = "NotoSans";
-const FONT_DIR: &str = "/usr/share/fonts/noto";
 
 const ROOT_NODE: u32 = 1;
 const MAGSYS_NODE_NAME: &str = "Magnet system";
 const MAG_SUBSYSTEMS: &[&str] = &["PS", "Cable", "Main coils", "PFS", "PFS PS", "PFS Cable"];
+
+fn load_font_family() -> fonts::FontFamily<fonts::FontData> {
+    fonts::FontFamily {
+        regular: fonts::FontData::new(
+            include_bytes!("/usr/share/fonts/noto/NotoSans-Regular.ttf").to_vec(),
+            None,
+        )
+        .unwrap(),
+        bold: fonts::FontData::new(
+            include_bytes!("/usr/share/fonts/noto/NotoSans-Bold.ttf").to_vec(),
+            None,
+        )
+        .unwrap(),
+        italic: fonts::FontData::new(
+            include_bytes!("/usr/share/fonts/noto/NotoSans-Italic.ttf").to_vec(),
+            None,
+        )
+        .unwrap(),
+        bold_italic: fonts::FontData::new(
+            include_bytes!("/usr/share/fonts/noto/NotoSans-BoldItalic.ttf").to_vec(),
+            None,
+        )
+        .unwrap(),
+    }
+}
 
 fn main() {
     let pbs = Nodes::from_file(FILEPATH).unwrap();
@@ -55,7 +78,7 @@ fn main() {
     let mut mag_subsystem_charts =
         cost_plots_from_data(mag_ss_names, mag_ss_costs, "Magnet subsystems");
 
-    let font_family = fonts::from_files(FONT_DIR, FONT, None).expect("Failed to load font family");
+    let font_family = load_font_family();
 
     let mut doc = Document::new(font_family);
     let mut decorator = SimplePageDecorator::new();
